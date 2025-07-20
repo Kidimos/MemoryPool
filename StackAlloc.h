@@ -44,44 +44,50 @@ class StackAlloc
 {
   public:
     typedef StackNode_<T> Node;
-    typedef typename Alloc::template rebind<Node>::other allocator;
+    // typedef typename Alloc::template rebind<Node>::other allocator;
+    using allocator = typename std::allocator_traits<Alloc>::template rebind_alloc<Node>;
+    using alloc_traits = typename std::allocator_traits<allocator>;
 
     /** Default constructor */
-    StackAlloc() {head_ = 0; }
+    StackAlloc() : head_(nullptr) {}
     /** Default destructor */
     ~StackAlloc() { clear(); }
 
     /** Returns true if the stack is empty */
-    bool empty() {return (head_ == 0);}
+    bool empty() {return (head_ == nullptr);}
 
     /** Deallocate all elements and empty the stack */
     void clear() {
       Node* curr = head_;
-      while (curr != 0)
+      while (curr != nullptr)
       {
         Node* tmp = curr->prev;
-        allocator_.destroy(curr);
-        allocator_.deallocate(curr, 1);
+        alloc_traits::destroy(allocator_, curr);
+        alloc_traits::deallocate(allocator_, curr, 1);
         curr = tmp;
       }
-      head_ = 0;
+      head_ = nullptr;
     }
 
     /** Put an element on the top of the stack */
     void push(T element) {
       Node* newNode = allocator_.allocate(1);
-      allocator_.construct(newNode, Node());
-      newNode->data = element;
-      newNode->prev = head_;
+      alloc_traits::construct(allocator_, newNode, Node{element, head_});
       head_ = newNode;
     }
+
+    // void push(T&& element) {
+    //   Node* newNode = allocator_.allocate(1);
+    //   allocator_.construct(newNode, Node{std::move(element), head_});
+    //   head_ = newNode;
+    // }
 
     /** Remove and return the topmost element on the stack */
     T pop() {
       T result = head_->data;
       Node* tmp = head_->prev;
-      allocator_.destroy(head_);
-      allocator_.deallocate(head_, 1);
+      alloc_traits::destroy(allocator_, head_);  // 修改这里
+      alloc_traits::deallocate(allocator_, head_, 1);  // 修改这里
       head_ = tmp;
       return result;
     }
